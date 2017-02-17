@@ -1,5 +1,6 @@
 package org.usfirst.frc.team4455.robot.subsystems;
 
+import org.usfirst.frc.team4455.robot.Robot;
 import org.usfirst.frc.team4455.robot.RobotMap;
 import org.usfirst.frc.team4455.robot.commands.DeadReckoning;
 
@@ -22,14 +23,18 @@ public class Navigation extends Subsystem {
     private double x = 0.0;
     private double y = 0.0;
     
+    private double drift;
+    private double offset;
+    
     private long lastTime = System.currentTimeMillis();
 
+    private double window = 4.0;
+    
     public void initDefaultCommand() {
         //setDefaultCommand(new DeadReckoning());
     }
     
     public void update() {
-    	// do we need to keep a last time?
     	if(!isReady()) {
     	    gyro = RobotMap.navigationgyro;
     	    accelRIO = RobotMap.navigationaccelRIO;
@@ -41,7 +46,10 @@ public class Navigation extends Subsystem {
     	
     	// a is our acceleration, hopefully in a forward/backward direction.
     	long now = System.currentTimeMillis();
-    	double a = accelRIO.getY();
+    	double a = accelRIO.getY()-offset-drift;
+    	
+    	if (drift != 0.0)
+    		a = ((int)(a/(drift*window)))*(drift*window); 
     	
     	// heading is which way we are going...
     	double heading = gyro.getAngle();
@@ -56,33 +64,40 @@ public class Navigation extends Subsystem {
     	double dx = Math.sin(Math.toRadians(heading)) * a * 32;
 
     	// we're gonna need to scale based on update time...
-    	double t = now-lastTime/1000.0;
+    	double dt = (now-lastTime)/1000.0;
+
+    	System.out.println(String.format("a: %1$.3f, heading: %2$.3f, dx: %3$.3f, dy: %4$.3f, dt: %5$.3f", a, heading, dx, dy, dt));
     	
     	// add our dx/dy (ft/s^s) times t (s) to get vx/vy (ft/s) 
-    	vx += dx * t;
-    	vy += dy * t;
+    	vx += dx * dt;
+    	vy += dy * dt;
     	
     	// add our vx/vy (ft/s) times t (s) to get x/y (ft)
-    	x += vx * t;
-    	y += vy * t;
+    	x += vx * dt;
+    	y += vy * dt;
     	
+    	System.out.println(String.format("vx: %1$.3f, vy: %2$.3f, x: %3$.3f, y: %4$.3f", vx, vy, x, y));
+
     	// update our time.
     	lastTime = now;
     	
     	// throw some status and such out.
-    	SmartDashboard.putString("navigation-sensor-aX", String.format("%1$.3f", accelRIO.getX()));
     	SmartDashboard.putString("navigation-sensor-aY", String.format("%1$.3f", a));
-    	SmartDashboard.putString("navigation-sensor-aZ", String.format("%1$.3f", accelRIO.getZ()));
-    	SmartDashboard.putString("navigation-accel-dX", String.format("%1$.3f", dx));
-    	SmartDashboard.putString("navigation-accel-dY", String.format("%1$.3f", dy));
-    	SmartDashboard.putString("navigation-vel-vX", String.format("%1$.3f", vx));
-    	SmartDashboard.putString("navigation-vel-vY", String.format("%1$.3f", vy));
-    	SmartDashboard.putString("navigation-X", String.format("%1$.3f", x));
-    	SmartDashboard.putString("navigation-Y", String.format("%1$.3f", y));
+    	SmartDashboard.putString("navigation-accel", String.format("%1$.3f, %2$.3f", dx, dy));
+    	SmartDashboard.putString("navigation-vel", String.format("%1$.3f, %2$.3f", vx, vy));
+    	SmartDashboard.putString("navigation-loc", String.format("%1$.3f, %2$.3f", x, y));
+    	SmartDashboard.putString("navigation-correction", String.format("%1$.3f, %2$.3f", drift, offset));
     }
     
     public boolean isReady() {
     	return (gyro != null && accelRIO != null);
+    }
+    
+    public void calibrate( double drift, double offset ) {
+    	this.drift = drift;
+    	this.offset = offset;
+    	Robot.debug("Navigation: Calibrating with "+drift+", "+offset);
+    	
     }
 }
 

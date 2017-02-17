@@ -2,6 +2,7 @@
 package org.usfirst.frc.team4455.robot;
 
 import org.usfirst.frc.team4455.robot.commands.DeadReckoning;
+import org.usfirst.frc.team4455.robot.commands.NavigationCalibration;
 import org.usfirst.frc.team4455.robot.subsystems.Active;
 import org.usfirst.frc.team4455.robot.subsystems.DriveTrain;
 import org.usfirst.frc.team4455.robot.subsystems.Lifter;
@@ -36,6 +37,8 @@ public class Robot extends IterativeRobot {
 	
 	Command autonomousCommand;
 	SendableChooser<Command> chooser = new SendableChooser<>();
+	
+	public static final boolean DEBUG = false;
 
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -121,10 +124,10 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		Scheduler.getInstance().run();
 
-		SmartDashboard.putData("Nav? Meow?", new Navigation());
-		SmartDashboard.putData("what what?", new DeadReckoning());
+		SmartDashboard.putData("Calibrate", new NavigationCalibration());
+		SmartDashboard.putData("Start Dead Reckoning", new DeadReckoning());
 		SmartDashboard.putData("accel", RobotMap.navigationaccelRIO);
-		SmartDashboard.putData("gyro", RobotMap.navigationgyro);
+		SmartDashboard.putData("Nav Subsystem", navigation);
 
 		
 		driveTrain.set(driver.getY()+(driver.getX()*.5), driver.getY()-(driver.getX()*.5));
@@ -137,5 +140,11 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void testPeriodic() {
 		LiveWindow.run();
+	}
+	
+	public static void debug(String msg) {
+		if(DEBUG) {
+			System.out.println(msg);
+		}
 	}
 }
