@@ -1,5 +1,7 @@
 package org.usfirst.frc.team4455.robot.subsystems;
 
+import org.usfirst.frc.team4455.robot.Robot;
+
 import com.ctre.CANTalon;
 
 import edu.wpi.first.wpilibj.command.Subsystem;
@@ -39,10 +41,24 @@ public class DriveTrain extends Subsystem {
     	driveForward = !driveForward;
     }
     
-    public void set(double left, double right) {
-		zero.set(left);
-		three.set(right);
+    public void set(double x, double y) {
+    	System.out.println("DriveTrain.set("+x+", "+y+")");
+    
+    	if(driveForward) {
+			zero.set(y+(x*.25));
+			three.set(y-(x*.25));
+    	}else {
+			zero.set(-y+(x*.25));
+			three.set(-y-(x*.25));
+    	}
+    	if (Math.abs(x) <= 0.01 && Math.abs(y) <= 0.01 ) {
+    		Robot.navigation.dampen();
+    	}
 
+    }
+    
+    public boolean isForward() {
+    	return driveForward;
     }
 }
 

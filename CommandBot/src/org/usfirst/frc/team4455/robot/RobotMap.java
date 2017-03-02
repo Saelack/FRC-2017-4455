@@ -20,18 +20,18 @@ public class RobotMap {
     public static BuiltInAccelerometer navigationaccelRIO;
 
     public static void init() {
-        activeSqueeze = new DoubleSolenoid(0, 2, 3);
-        LiveWindow.addActuator("Active", "activeSqueeze", activeSqueeze);
+        activeLift = new DoubleSolenoid(0, 2, 3);
+//        LiveWindow.addActuator("Active", "activeSqueeze", activeSqueeze);
         
-        activeLift = new DoubleSolenoid(0, 4, 5);
-        LiveWindow.addActuator("Active", "activeLift", activeLift);
+        passiveCylinder = new DoubleSolenoid(0, 5, 4);
+//        LiveWindow.addActuator("Active", "activeLift", activeLift);
         
-        passiveCylinder = new DoubleSolenoid(0, 0, 1);
-        LiveWindow.addActuator("Passive", "passiveCylinder", passiveCylinder);
+        activeSqueeze = new DoubleSolenoid(0, 1, 0);
+//        LiveWindow.addActuator("Passive", "passiveCylinder", passiveCylinder);
         
         navigationgyro = new ADXRS450_Gyro();
-        LiveWindow.addSensor("Navigation", "gyro", navigationgyro);
-        navigationaccelRIO = new BuiltInAccelerometer(Range.k4G);
-        LiveWindow.addSensor("Navigation", "accelRIO", navigationaccelRIO);
+//        LiveWindow.addSensor("Navigation", "gyro", navigationgyro);
+        navigationaccelRIO = new BuiltInAccelerometer(Range.k2G);
+//        LiveWindow.addSensor("wsNavigation", "accelRIO", navigationaccelRIO);
     }
 }

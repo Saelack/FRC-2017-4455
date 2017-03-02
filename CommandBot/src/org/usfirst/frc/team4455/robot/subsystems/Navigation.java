@@ -2,10 +2,8 @@ package org.usfirst.frc.team4455.robot.subsystems;
 
 import org.usfirst.frc.team4455.robot.Robot;
 import org.usfirst.frc.team4455.robot.RobotMap;
-import org.usfirst.frc.team4455.robot.commands.DeadReckoning;
 
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
-import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.BuiltInAccelerometer;
 import edu.wpi.first.wpilibj.command.Subsystem;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -89,6 +87,10 @@ public class Navigation extends Subsystem {
     	SmartDashboard.putString("navigation-correction", String.format("%1$.3f, %2$.3f", drift, offset));
     }
     
+    public void reset() {
+    	vx = vy = x = y = 0;
+    }
+    
     public boolean isReady() {
     	return (gyro != null && accelRIO != null);
     }
@@ -97,6 +99,13 @@ public class Navigation extends Subsystem {
     	this.drift = drift;
     	this.offset = offset;
     	Robot.debug("Navigation: Calibrating with "+drift+", "+offset);
+    	
+    }
+    public void dampen(){
+    	vx *= .5;
+    	if (vx < 0.01) vx= 0;
+    	vy *= .5;
+    	if (vy < 0.01) vy= 0;
     	
     }
 }

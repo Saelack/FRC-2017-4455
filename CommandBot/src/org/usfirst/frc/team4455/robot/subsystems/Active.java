@@ -26,18 +26,30 @@ public class Active extends Subsystem {
         //setDefaultCommand(new MySpecialCommand());
     }
     public void open() {
+    	if(activeSqueezeSolonoid == null) {
+    		activeSqueezeSolonoid = RobotMap.activeSqueeze;
+    	}
     	activeSqueezeSolonoid.set(Value.kForward);
     }
     
     public void close() {
+    	if(activeSqueezeSolonoid == null) {
+    		activeSqueezeSolonoid = RobotMap.activeSqueeze;
+    	}
     	activeSqueezeSolonoid.set(Value.kReverse);
     }
 
     public void lift() {
+    	if(activeLiftSolonoid == null) {
+    		activeLiftSolonoid = RobotMap.activeLift;
+    	}
     	activeLiftSolonoid.set(Value.kForward);
     }
     
     public void drop() {
+    	if(activeLiftSolonoid == null) {
+    		activeLiftSolonoid = RobotMap.activeLift;
+    	}
     	activeLiftSolonoid.set(Value.kReverse);
     }
 

@@ -26,10 +26,16 @@ public class Passive extends Subsystem {
     }
     
     public void open() {
+    	if(passiveSolonoid == null) {
+    		passiveSolonoid = RobotMap.passiveCylinder;
+    	}
     	passiveSolonoid.set(Value.kForward);
     }
     
     public void close() {
+    	if(passiveSolonoid == null) {
+    		passiveSolonoid = RobotMap.passiveCylinder;
+    	}
     	passiveSolonoid.set(Value.kReverse);
     }
 }

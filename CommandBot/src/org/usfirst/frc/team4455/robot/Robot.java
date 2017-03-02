@@ -1,16 +1,29 @@
 
 package org.usfirst.frc.team4455.robot;
 
+import org.usfirst.frc.team4455.robot.commands.ActiveClose;
+import org.usfirst.frc.team4455.robot.commands.ActiveDrop;
+import org.usfirst.frc.team4455.robot.commands.ActiveLift;
+import org.usfirst.frc.team4455.robot.commands.ActiveOpen;
 import org.usfirst.frc.team4455.robot.commands.DeadReckoning;
 import org.usfirst.frc.team4455.robot.commands.NavigationCalibration;
+import org.usfirst.frc.team4455.robot.commands.PassiveClose;
+import org.usfirst.frc.team4455.robot.commands.PassiveOpen;
+import org.usfirst.frc.team4455.robot.commands.Seek;
 import org.usfirst.frc.team4455.robot.subsystems.Active;
 import org.usfirst.frc.team4455.robot.subsystems.DriveTrain;
 import org.usfirst.frc.team4455.robot.subsystems.Lifter;
 import org.usfirst.frc.team4455.robot.subsystems.Navigation;
 import org.usfirst.frc.team4455.robot.subsystems.Passive;
+import org.usfirst.frc.team4455.robot.subsystems.V2Vision;
+import org.usfirst.frc.team4455.robot.subsystems.Vision;
 
+import edu.wpi.cscore.AxisCamera;
+import edu.wpi.cscore.UsbCamera;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.Ultrasonic;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
@@ -30,13 +43,30 @@ public class Robot extends IterativeRobot {
 	public static final DriveTrain driveTrain = new DriveTrain();
 	public static final Lifter lifter = new Lifter();
 	public static final Navigation navigation = new Navigation();
+	public static final Vision vision = new Vision();
+	public static final V2Vision v2vision = new V2Vision();
+	
 	public static OI oi;
 
+	Command calibrate = new NavigationCalibration();
+	Command deadReckoning = new DeadReckoning();
+
+	Command activeOpen = new ActiveOpen();
+	Command activeClose = new ActiveClose();
+	Command activeLift = new ActiveLift();
+	Command activeDrop = new ActiveDrop();
+	Command passiveOpen = new PassiveOpen();
+	Command passiveClose = new PassiveClose();	
+	Command seek = new Seek();
+	
 	private Joystick driver;
 	private Joystick codriver;
 	
+	UsbCamera usb;
+	
 	Command autonomousCommand;
 	SendableChooser<Command> chooser = new SendableChooser<>();
+	Ultrasonic sonar;
 	
 	public static final boolean DEBUG = false;
 
@@ -45,7 +75,11 @@ public class Robot extends IterativeRobot {
 	 * used for any initialization code.
 	 */
 	@Override
-	public void robotInit() {		
+	public void robotInit() {	
+		
+//		sonar = new Ultrasonic();
+
+		
 		oi = new OI();
 		
 		driver = oi.driver;
@@ -53,6 +87,13 @@ public class Robot extends IterativeRobot {
 		
 		RobotMap.init();
 		
+		AxisCamera alpha = CameraServer.getInstance().addAxisCamera("Alpha", "axis-alpha");
+		AxisCamera beta = CameraServer.getInstance().addAxisCamera("Beta", "axis-beta");
+		
+		
+		usb = CameraServer.getInstance().startAutomaticCapture("Active USB", 0);
+		usb.setFPS(2);
+		CameraServer.getInstance().startAutomaticCapture("Passive USB", 1 );
 		// chooser.addObject("My Auto", new MyAutoCommand());
 		SmartDashboard.putData("Auto mode", chooser);
 	}
@@ -64,7 +105,7 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void disabledInit() {
-
+		navigation.reset();
 	}
 
 	@Override
@@ -94,6 +135,8 @@ public class Robot extends IterativeRobot {
 		 * autonomousCommand = new ExampleCommand(); break; }
 		 */
 
+		autonomousCommand = seek;
+		
 		// schedule the autonomous command (example)
 		if (autonomousCommand != null)
 			autonomousCommand.start();
@@ -105,6 +148,7 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousPeriodic() {
 		Scheduler.getInstance().run();
+		
 	}
 
 	@Override
@@ -123,14 +167,37 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void teleopPeriodic() {
 		Scheduler.getInstance().run();
-
-		SmartDashboard.putData("Calibrate", new NavigationCalibration());
-		SmartDashboard.putData("Start Dead Reckoning", new DeadReckoning());
-		SmartDashboard.putData("accel", RobotMap.navigationaccelRIO);
-		SmartDashboard.putData("Nav Subsystem", navigation);
-
 		
-		driveTrain.set(driver.getY()+(driver.getX()*.5), driver.getY()-(driver.getX()*.5));
+		//System.out.println(Runtime.getRuntime().freeMemory());
+//		System.gc();
+		//usb.free();
+	
+		//System.out.println(sonar.getRangeInches());
+		
+		SmartDashboard.putData("Nav Subsystem", navigation);
+		SmartDashboard.putData("Calibrate", calibrate);
+		SmartDashboard.putData("Start Dead Reckoning", deadReckoning);
+		SmartDashboard.putData("accel", RobotMap.navigationaccelRIO);
+
+		SmartDashboard.putData("Active Subsystem", active);
+		SmartDashboard.putData("Active Open", activeOpen);
+		SmartDashboard.putData("Active Close", activeClose);
+		SmartDashboard.putData("Active Lift", activeLift);
+		SmartDashboard.putData("Active Drop", activeDrop);
+		
+		SmartDashboard.putData("Passive Subsystem", passive);
+		SmartDashboard.putData("Passive Open", passiveOpen);
+		SmartDashboard.putData("Passive Close", passiveClose);
+		
+		SmartDashboard.putData("Vision System", vision);
+		SmartDashboard.putData("Vision", seek);
+		
+		SmartDashboard.putBoolean("Drive Forward", driveTrain.isForward());
+		
+		double x = driver.getX();
+		double y = driver.getY();
+		
+		driveTrain.set(x, y*y*y);
 		lifter.set(codriver.getY());
 	}
 
