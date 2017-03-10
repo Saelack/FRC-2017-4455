@@ -6,25 +6,26 @@ import org.usfirst.frc.team4455.robot.commands.ActiveDrop;
 import org.usfirst.frc.team4455.robot.commands.ActiveLift;
 import org.usfirst.frc.team4455.robot.commands.ActiveOpen;
 import org.usfirst.frc.team4455.robot.commands.DeadReckoning;
+import org.usfirst.frc.team4455.robot.commands.DriveAndSeek;
+import org.usfirst.frc.team4455.robot.commands.DriveTrainFlip;
 import org.usfirst.frc.team4455.robot.commands.NavigationCalibration;
 import org.usfirst.frc.team4455.robot.commands.PassiveClose;
 import org.usfirst.frc.team4455.robot.commands.PassiveOpen;
 import org.usfirst.frc.team4455.robot.commands.Seek;
+import org.usfirst.frc.team4455.robot.commands.TimedDrive;
+import org.usfirst.frc.team4455.robot.commands.TunableTurn;
 import org.usfirst.frc.team4455.robot.subsystems.Active;
 import org.usfirst.frc.team4455.robot.subsystems.DriveTrain;
 import org.usfirst.frc.team4455.robot.subsystems.Lifter;
 import org.usfirst.frc.team4455.robot.subsystems.Navigation;
 import org.usfirst.frc.team4455.robot.subsystems.Passive;
-import org.usfirst.frc.team4455.robot.subsystems.V2Vision;
 import org.usfirst.frc.team4455.robot.subsystems.Vision;
 
-import edu.wpi.cscore.AxisCamera;
-import edu.wpi.cscore.UsbCamera;
-import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Ultrasonic;
 import edu.wpi.first.wpilibj.command.Command;
+import edu.wpi.first.wpilibj.command.CommandGroup;
 import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -44,28 +45,37 @@ public class Robot extends IterativeRobot {
 	public static final Lifter lifter = new Lifter();
 	public static final Navigation navigation = new Navigation();
 	public static final Vision vision = new Vision();
-	public static final V2Vision v2vision = new V2Vision();
 	
 	public static OI oi;
 
-	Command calibrate = new NavigationCalibration();
-	Command deadReckoning = new DeadReckoning();
+	private Command calibrate = new NavigationCalibration();
+	private Command deadReckoning = new DeadReckoning();
 
-	Command activeOpen = new ActiveOpen();
-	Command activeClose = new ActiveClose();
-	Command activeLift = new ActiveLift();
-	Command activeDrop = new ActiveDrop();
-	Command passiveOpen = new PassiveOpen();
-	Command passiveClose = new PassiveClose();	
-	Command seek = new Seek();
+	private Command flip = new DriveTrainFlip();
+
+	private Command activeOpen = new ActiveOpen();
+	private Command activeClose = new ActiveClose();
+	private Command activeLift = new ActiveLift();
+	private Command activeDrop = new ActiveDrop();
+	private Command passiveOpen = new PassiveOpen();
+	private Command passiveClose = new PassiveClose();	
+	private Command seek = new Seek();
 	
 	private Joystick driver;
 	private Joystick codriver;
 	
-	UsbCamera usb;
+	private SendableChooser<Double> turn1Direction = new SendableChooser<>();
+	private SendableChooser<Double> turn1TurnTime = new SendableChooser<>();
+	private SendableChooser<Double> turn1ForwardTime = new SendableChooser<>();
+	private SendableChooser<Double> turn2Direction = new SendableChooser<>();
+	private SendableChooser<Double> turn2TurnTime = new SendableChooser<>();
+	private SendableChooser<Double> turn2ForwardTime = new SendableChooser<>();
+	private SendableChooser<Double> turn3Direction = new SendableChooser<>();
+	private SendableChooser<Double> turn3TurnTime = new SendableChooser<>();
+	private SendableChooser<Double> turn3ForwardTime = new SendableChooser<>();
 	
-	Command autonomousCommand;
-	SendableChooser<Command> chooser = new SendableChooser<>();
+	private CommandGroup tunableAuto = new CommandGroup("TunableAuto");
+	
 	Ultrasonic sonar;
 	
 	public static final boolean DEBUG = false;
@@ -78,7 +88,6 @@ public class Robot extends IterativeRobot {
 	public void robotInit() {	
 		
 //		sonar = new Ultrasonic();
-
 		
 		oi = new OI();
 		
@@ -86,16 +95,71 @@ public class Robot extends IterativeRobot {
 		codriver = oi.codriver;
 		
 		RobotMap.init();
+		vision.setupCamera();
+				
+		// we try things.  some of them might work.
+		// we might want to go thru the list of every SmartDashboard key, and remove/removePersistant
+		SmartDashboard board = new SmartDashboard();
+		for (String key : board.getKeys()) {
+			board.clearPersistent(key);
+			board.delete(key);
+		}
 		
-		AxisCamera alpha = CameraServer.getInstance().addAxisCamera("Alpha", "axis-alpha");
-		AxisCamera beta = CameraServer.getInstance().addAxisCamera("Beta", "axis-beta");
+		// TURN 1
+		// turn direction		{left, right }
+		turn1Direction.addObject("Left",  -1.0);
+		turn1Direction.addObject("Right", 1.0);
+		// turn time			{.25, .5, .75, 1.0 }
+		turn1TurnTime.addObject("0.25 sec",  .25);
+		turn1TurnTime.addObject("0.5 sec",   .5);
+		turn1TurnTime.addObject("0.75 sec",  .75);
+		turn1TurnTime.addObject("1.0 sec", 1.0);
+		// forward time			{.25, .5, .75, 1.0 }
+		turn1ForwardTime.addObject("0.25 sec",  .25);
+		turn1ForwardTime.addObject("0.5 sec",   .5);
+		turn1ForwardTime.addObject("0.75 sec",  .75);
+		turn1ForwardTime.addObject("1.0 sec", 1.0);
+			
+		// TURN 2
+		// turn direction		{left, right }
+		turn2Direction.addObject("Left",  -1.0);
+		turn2Direction.addObject("Right", 1.0);
+		// turn time			{.25, .5, .75, 1.0 }
+		turn2TurnTime.addObject("0.25 sec",  .25);
+		turn2TurnTime.addObject("0.5 sec",   .5);
+		turn2TurnTime.addObject("0.75 sec",  .75);
+		turn2TurnTime.addObject("1.0 sec", 1.0);
+		// forward time			{.25, .5, .75, 1.0 }
+		turn2ForwardTime.addObject("0.25 sec",  .25);
+		turn2ForwardTime.addObject("0.5 sec",   .5);
+		turn2ForwardTime.addObject("0.75 sec",  .75);
+		turn2ForwardTime.addObject("1.0 sec", 1.0);
 		
+		// TURN 3
+		// turn direction		{left, right, none }
+		turn3Direction.addObject("Left",  -1.0);
+		turn3Direction.addObject("Right", 1.0);
+		turn3Direction.addObject("None",  0.0);
+		// turn time			{.25, .5, .75, 1.0 }
+		turn3TurnTime.addObject("0.25 sec",  .25);
+		turn3TurnTime.addObject("0.5 sec",   .5);
+		turn3TurnTime.addObject("0.75 sec",  .75);
+		turn3TurnTime.addObject("1.0 sec", 1.0);
+		// forward timed		{1.0, 1.5, 2.0, 3.0 }
+		turn3ForwardTime.addObject("1.0 sec", 1.0);
+		turn3ForwardTime.addObject("1.5 sec", 1.5);
+		turn3ForwardTime.addObject("2.0 sec", 2.0);
+		turn3ForwardTime.addObject("3.0 sec", 3.0);
 		
-		usb = CameraServer.getInstance().startAutomaticCapture("Active USB", 0);
-		usb.setFPS(2);
-		CameraServer.getInstance().startAutomaticCapture("Passive USB", 1 );
-		// chooser.addObject("My Auto", new MyAutoCommand());
-		SmartDashboard.putData("Auto mode", chooser);
+		SmartDashboard.putData("Turn 1 Direction", turn1Direction);
+		SmartDashboard.putData("Turn 1 Turn Time", turn1TurnTime);
+		SmartDashboard.putData("Turn 1 Forward Time", turn1ForwardTime);
+		SmartDashboard.putData("Turn 2 Direction", turn2Direction);
+		SmartDashboard.putData("Turn 2 Turn Time", turn2TurnTime);
+		SmartDashboard.putData("Turn 2 Forward Time", turn2ForwardTime);
+		SmartDashboard.putData("Turn 3 Direction", turn3Direction);
+		SmartDashboard.putData("Turn 3 Turn Time", turn3TurnTime);
+		SmartDashboard.putData("Turn 3 Forward Time", turn3ForwardTime);
 	}
 
 	/**
@@ -126,20 +190,40 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void autonomousInit() {
-		autonomousCommand = chooser.getSelected();
+		//seek.start(); // hack code!!!  real to follow:
+		
+		//if(true) return;
 
-		/*
+//		tunableAuto.addSequential(new DriveAndSeek());  // requires DriveTrain
+//		tunableAuto.addSequential(new TimedDrive(.5, -.25));  // requires DriveTrain, takes (seconds, power)
+//		tunableAuto.addSequential(new PassiveOpen());
+		tunableAuto.addSequential(new TimedDrive(.75, .75));  // requires DriveTrain, takes (seconds, power)
+		tunableAuto.addSequential(new TunableTurn(turn1TurnTime.getSelected(), turn1Direction.getSelected()));  // requires DriveTrain, takes (seconds, power)
+//		tunableAuto.addSequential(new TimedDrive(turn1ForwardTime.getSelected(), -.10));  // requires DriveTrain, takes (seconds, power)
+//		tunableAuto.addSequential(new TunableTurn(turn2TurnTime.getSelected(), turn2Direction.getSelected()));  // requires DriveTrain, takes (seconds, power)
+//		tunableAuto.addParallel(new PassiveClose());
+//		tunableAuto.addSequential(new TimedDrive(turn2ForwardTime.getSelected(), -.10));  // requires DriveTrain, takes (seconds, power)
+//		tunableAuto.addSequential(new TunableTurn(turn3TurnTime.getSelected(), turn3Direction.getSelected()));  // requires DriveTrain, takes (seconds, power)
+//		tunableAuto.addSequential(new TimedDrive(turn3ForwardTime.getSelected(), -.10));  // requires DriveTrain, takes (seconds, power)		
+		
+		tunableAuto.start();
+		
+		
+/*		autonomousCommand = chooser.getSelected();
+
+		
 		 * String autoSelected = SmartDashboard.getString("Auto Selector",
 		 * "Default"); switch(autoSelected) { case "My Auto": autonomousCommand
 		 * = new MyAutoCommand(); break; case "Default Auto": default:
 		 * autonomousCommand = new ExampleCommand(); break; }
-		 */
+		 
 
 		autonomousCommand = seek;
 		
 		// schedule the autonomous command (example)
 		if (autonomousCommand != null)
 			autonomousCommand.start();
+*/	
 	}
 
 	/**
@@ -148,7 +232,6 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousPeriodic() {
 		Scheduler.getInstance().run();
-		
 	}
 
 	@Override
@@ -157,8 +240,8 @@ public class Robot extends IterativeRobot {
 		// teleop starts running. If you want the autonomous to
 		// continue until interrupted by another command, remove
 		// this line or comment it out.
-		if (autonomousCommand != null)
-			autonomousCommand.cancel();
+//		if (autonomousCommand != null)
+//			autonomousCommand.cancel();
 	}
 
 	/**
@@ -173,8 +256,11 @@ public class Robot extends IterativeRobot {
 		//usb.free();
 	
 		//System.out.println(sonar.getRangeInches());
+
 		
-		SmartDashboard.putData("Nav Subsystem", navigation);
+		SmartDashboard.putData("Flip", flip);
+		SmartDashboard.putBoolean("Drive Forward", driveTrain.isForward());
+/*		SmartDashboard.putData("Nav Subsystem", navigation);
 		SmartDashboard.putData("Calibrate", calibrate);
 		SmartDashboard.putData("Start Dead Reckoning", deadReckoning);
 		SmartDashboard.putData("accel", RobotMap.navigationaccelRIO);
@@ -192,13 +278,15 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putData("Vision System", vision);
 		SmartDashboard.putData("Vision", seek);
 		
-		SmartDashboard.putBoolean("Drive Forward", driveTrain.isForward());
+*/
+
 		
 		double x = driver.getX();
 		double y = driver.getY();
 		
 		driveTrain.set(x, y*y*y);
 		lifter.set(codriver.getY());
+		
 	}
 
 	/**

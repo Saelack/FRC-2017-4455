@@ -42,8 +42,7 @@ public class DriveTrain extends Subsystem {
     }
     
     public void set(double x, double y) {
-    	System.out.println("DriveTrain.set("+x+", "+y+")");
-    
+    	    
     	if(driveForward) {
 			zero.set(y+(x*.25));
 			three.set(y-(x*.25));
