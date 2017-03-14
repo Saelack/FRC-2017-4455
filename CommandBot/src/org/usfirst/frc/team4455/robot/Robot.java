@@ -107,6 +107,7 @@ public class Robot extends IterativeRobot {
 		// turn direction		{left, right }
 		turn2Direction.addObject("Left",  -1.0);
 		turn2Direction.addDefault("Right", 1.0);
+		turn2Direction.addObject("None",  0.0);
 		// turn time			{.25, .5, .75, 1.0 }
 		turn2TurnTime.addObject("0.25 sec",  .25);
 		turn2TurnTime.addObject("0.5 sec",   .5);

@@ -5,14 +5,16 @@ import org.usfirst.frc.team4455.robot.Robot;
 import edu.wpi.first.wpilibj.command.Command;
 
 public class TunableTurn extends Command {
-	private double seconds;
-	private double power;
+	private double seconds = 0.0;
+	private double power = 0.0;
 	
 	public TunableTurn(double seconds, double power) {
     	requires(Robot.driveTrain);
 		
-		this.seconds = seconds;
 		this.power = power;
+		if(power != 0.0) {
+			this.seconds = seconds;
+		}
 	}
 
 	@Override
